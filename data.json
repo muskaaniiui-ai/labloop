@@ -1,0 +1,136 @@
+{
+ "users": [
+  {
+   "id": "u1",
+   "name": "Ana Silva (Student)",
+   "email": "ana@uni.test",
+   "role": "student",
+   "training": [
+    "microscopy",
+    "camera"
+   ]
+  },
+  {
+   "id": "u2",
+   "name": "Ben Okoye (Student)",
+   "email": "ben@uni.test",
+   "role": "student",
+   "training": []
+  },
+  {
+   "id": "u3",
+   "name": "Dr. Rao (Owner)",
+   "email": "rao@uni.test",
+   "role": "owner",
+   "training": [
+    "microscopy",
+    "camera",
+    "spectro"
+   ]
+  },
+  {
+   "id": "u4",
+   "name": "Mia Chen (Lab Manager)",
+   "email": "mia@uni.test",
+   "role": "manager",
+   "training": []
+  }
+ ],
+ "resources": [
+  {
+   "id": "r1",
+   "name": "Confocal Microscope Zeiss LSM",
+   "category": "Microscopy",
+   "location": "Bio Building, Room 214",
+   "owner": "u3",
+   "requires": [
+    "microscopy"
+   ],
+   "weeklyLimitHrs": 6,
+   "available": true,
+   "desc": "High-resolution fluorescence imaging."
+  },
+  {
+   "id": "r2",
+   "name": "Mirrorless Research Camera Kit",
+   "category": "Imaging",
+   "location": "Media Lab, Cabinet B",
+   "owner": "u3",
+   "requires": [
+    "camera"
+   ],
+   "weeklyLimitHrs": 8,
+   "available": true,
+   "desc": "Camera with macro lens and tripod for field studies."
+  },
+  {
+   "id": "r3",
+   "name": "UV-Vis Spectrophotometer",
+   "category": "Analysis",
+   "location": "Chem Building, Room 105",
+   "owner": "u3",
+   "requires": [
+    "spectro"
+   ],
+   "weeklyLimitHrs": 6,
+   "available": true,
+   "desc": "Absorbance measurements 190-1100 nm."
+  },
+  {
+   "id": "r4",
+   "name": "Portable Thermal Camera",
+   "category": "Imaging",
+   "location": "Engineering Store",
+   "owner": "u3",
+   "requires": [],
+   "weeklyLimitHrs": 10,
+   "available": false,
+   "desc": "Currently under calibration (unavailable)."
+  }
+ ],
+ "bookings": [
+  {
+   "id": "bc0fe5c",
+   "resourceId": "r2",
+   "userId": "u1",
+   "start": 1793275200000,
+   "end": 1793282400000,
+   "purpose": "to study",
+   "status": "checked_out",
+   "reason": "Approved by Dr. Rao (Owner)",
+   "createdAt": 1793190478017,
+   "history": [],
+   "checkout": {
+    "t": 1793190649000,
+    "condition": "no scractches ",
+    "photoNote": ""
+   }
+  }
+ ],
+ "incidents": [],
+ "audit": [
+  {
+   "t": 1793190649000,
+   "actor": "Ana Silva (Student)",
+   "msg": "Checked out. Initial condition: no scractches ",
+   "bookingId": "bc0fe5c"
+  },
+  {
+   "t": 1793190629202,
+   "actor": "Dr. Rao (Owner)",
+   "msg": "approve -> approved: Approved by Dr. Rao (Owner)",
+   "bookingId": "bc0fe5c"
+  },
+  {
+   "t": 1793190478017,
+   "actor": "Ana Silva (Student)",
+   "msg": "Requested Mirrorless Research Camera Kit (pending)",
+   "bookingId": "bc0fe5c"
+  },
+  {
+   "t": 1793190434206,
+   "actor": "system",
+   "msg": "LabLoop seeded with fictional demo data"
+  }
+ ]
+}

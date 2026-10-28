@@ -1,0 +1,94 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LabLoop - trusted lab equipment sharing</title>
+<style>
+:root{--bg:#eaf0f4;--ink:#12263a;--mut:#5b6b7b;--card:#fff;--line:#d3dde5;--acc:#0b7f8c;--accd:#075d67;--warn:#b45309;--bad:#b42318;--ok:#157347;--soft:#dff1f3}
+@media(prefers-color-scheme:dark){:root{--bg:#0e1a24;--ink:#e6eef5;--mut:#9fb0bf;--card:#16273a;--line:#2a3f55;--acc:#3cc3d0;--accd:#7fdbe4;--warn:#f0b35c;--bad:#ff8f84;--ok:#6fd3a0;--soft:#12383f}}
+*{box-sizing:border-box}body{margin:0;font:15px/1.5 "Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:#12263a;color:#fff;padding:12px 20px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+header b{font-size:20px;letter-spacing:.3px}header small{opacity:.75}nav{display:flex;gap:4px;flex-wrap:wrap;margin-left:auto}
+nav button{background:none;border:0;color:#fff;padding:8px 12px;border-radius:8px;cursor:pointer;font:inherit}nav button.on,nav button:hover{background:rgba(255,255,255,.16)}
+main{max-width:1100px;margin:20px auto;padding:0 16px}h2{margin:0 0 4px}p.sub{color:var(--mut);margin:0 0 16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}.card h3{margin:0 0 4px;font-size:17px}
+.tag{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;background:var(--soft);color:var(--accd);margin:2px 4px 2px 0}
+.tag.warn{background:#fdf0dc;color:var(--warn)}.tag.bad{background:#fde4e1;color:var(--bad)}.tag.ok{background:#dcf3e6;color:var(--ok)}
+@media(prefers-color-scheme:dark){.tag.warn{background:#3a2c12}.tag.bad{background:#3d1c19}.tag.ok{background:#123a26}}
+button.b{background:var(--acc);color:#fff;border:0;border-radius:8px;padding:8px 14px;cursor:pointer;font:inherit}button.b:hover{background:var(--accd)}
+button.b.alt{background:none;color:var(--ink);border:1px solid var(--line)}button.b.red{background:var(--bad);color:#111}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--acc);outline-offset:1px}
+input,select,textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:inherit;margin:3px 0 10px}label{font-size:13px;color:var(--mut)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.row>*{flex:1}.row.f>*{flex:none}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}.stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 16px}.stat b{font-size:28px;display:block}
+table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--mut);font-weight:600;font-size:13px}.scroll{overflow-x:auto}
+.bar{height:10px;background:var(--line);border-radius:6px;overflow:hidden}.bar i{display:block;height:100%;background:var(--acc)}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);padding:12px 18px;border-radius:10px;color:#fff;display:none;max-width:90%;z-index:9}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:14px;z-index:5}.modal .card{max-width:480px;width:100%;max-height:92vh;overflow:auto}
+.login{max-width:440px;margin:8vh auto}.acct{width:100%;text-align:left;margin-bottom:8px}.tl{border-left:3px solid var(--acc);padding-left:12px;margin:10px 0}.tl div{margin-bottom:6px;font-size:13px}.mut{color:var(--mut);font-size:13px}
+</style></head><body>
+<header><b>LabLoop</b><small>Every idle resource is an opportunity waiting to be unlocked.</small><nav id="nav"></nav></header>
+<main id="app"></main><div id="toast" role="status"></div>
+<script>
+let S=null,tab='discover',token=localStorage.getItem('ll_tok'),q='',cat='',onlyEl=false;
+const $=s=>document.querySelector(s),fmt=t=>t?new Date(t).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}):'-';
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+async function api(p,body){const r=await fetch('/api'+p,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',Authorization:'Bearer '+(token||'')},body:body?JSON.stringify(body):undefined});const j=await r.json();if(!r.ok)throw new Error(j.error||'Error');return j}
+function toast(m,bad){const t=$('#toast');t.textContent=m;t.style.background=bad?'#b42318':'#157347';t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',4500)}
+async function act(fn,ok){try{await fn();if(ok)toast(ok);await load()}catch(e){toast(e.message,1)}}
+async function load(){try{S=await api('/state');render()}catch(e){token=null;localStorage.removeItem('ll_tok');loginView()}}
+function loginView(){$('#nav').innerHTML='';$('#app').innerHTML=`<div class="card login"><h2>Sign in to LabLoop</h2><p class="sub">Demo mode with fictional accounts. Pick one to explore each role.</p>
+${[['ana@uni.test','Ana Silva','Student - trained in microscopy and camera (eligible)'],['ben@uni.test','Ben Okoye','Student - no training (blocked by TrustPass)'],['rao@uni.test','Dr. Rao','Resource owner - approves requests'],['mia@uni.test','Mia Chen','Lab manager - reviews incidents, full dashboard']].map(a=>`<button class="b alt acct" onclick="login('${a[0]}')"><b>${a[1]}</b><br><span class="mut">${a[2]}</span></button>`).join('')}</div>`}
+async function login(email){try{const r=await api('/login',{email});token=r.token;localStorage.setItem('ll_tok',token);tab=r.user.role==='student'?'discover':'requests';await load()}catch(e){toast(e.message,1)}}
+const TABS={student:[['discover','Discover'],['mine','My bookings'],['dash','Activity']],owner:[['requests','Approvals'],['manage','My equipment'],['discover','Catalogue'],['dash','Dashboard']],manager:[['dash','Dashboard'],['requests','Approvals'],['incidents','Incidents'],['manage','Equipment'],['discover','Catalogue']]};
+function render(){const me=S.me;$('#nav').innerHTML=TABS[me.role].map(t=>`<button class="${tab===t[0]?'on':''}" onclick="tab='${t[0]}';render()">${t[1]}</button>`).join('')+`<button onclick="logout()">${esc(me.name)} - sign out</button>`;
+ ({discover,mine,requests,manage,incidents,dash})[tab]()}
+function logout(){token=null;localStorage.removeItem('ll_tok');S=null;loginView()}
+const stTag=s=>({pending:'warn',waitlisted:'warn',approved:'ok',checked_out:'',rejected:'bad',returned:'bad',closed:'ok'}[s]||'');
+const label=s=>({returned:'damage under review',checked_out:'checked out'}[s]||s);
+// SCREEN 1: discover (search by name, category, eligibility)
+function discover(){const cats=[...new Set(S.resources.map(r=>r.category))];
+ const list=S.resources.filter(r=>(r.name+r.location+r.desc).toLowerCase().includes(q.toLowerCase())&&(!cat||r.category===cat)&&(!onlyEl||r.eligible));
+ $('#app').innerHTML=`<h2>Discover equipment</h2><p class="sub">Search shared university resources, check requirements, and request access.</p>
+ <div class="row"><input id="q" placeholder="Search equipment, location..." value="${esc(q)}" oninput="q=this.value;discoverList()"><select onchange="cat=this.value;discoverList()"><option value="">All categories</option>${cats.map(c=>`<option ${c===cat?'selected':''}>${c}</option>`).join('')}</select>
+ <label class="row f"><input type="checkbox" style="width:auto" ${onlyEl?'checked':''} onchange="onlyEl=this.checked;discoverList()"> Only show what I'm eligible for</label></div><div id="list" class="grid"></div>`;discoverList()}
+function discoverList(){const list=S.resources.filter(r=>(r.name+r.location+r.desc).toLowerCase().includes(q.toLowerCase())&&(!cat||r.category===cat)&&(!onlyEl||r.eligible));
+ $('#list').innerHTML=list.map(r=>`<div class="card"><h3>${esc(r.name)}</h3><div class="mut">${esc(r.location)} - Owner: ${esc(r.ownerName)}</div><p>${esc(r.desc)}</p>
+ <span class="tag ${r.available?'ok':'bad'}">${r.available?'Available':'Unavailable'}</span>${r.waitlist?`<span class="tag warn">${r.waitlist} waiting</span>`:''}${r.nextFree?`<span class="tag">Next free ${fmt(r.nextFree)}</span>`:''}
+ <div class="mut" style="margin-top:6px">Requires: ${r.requires.length?r.requires.map(x=>`<span class="tag ${r.missing.includes(x)?'bad':'ok'}">${x}</span>`).join(''):'no training'}</div>
+ <div class="mut">Fair-use limit: ${r.weeklyLimitHrs}h per 7 days${S.me.role==='student'?` (you used ${r.usedHrs.toFixed(1)}h)`:''}</div>
+ <div class="mut" style="margin:6px 0">${S.me.role==='student'?(r.eligible?'Match: you hold all required training.':'Not eligible: missing '+r.missing.join(', ')):''}</div>
+ ${S.me.role==='student'?`<button class="b" onclick="reqModal('${r.id}')">${r.available?'Request access':'Join waiting list'}</button>`:''}</div>`).join('')||'<div class="card">No equipment matches. Clear the filters to see everything.</div>'}
+// SCREEN 2: request access
+function reqModal(id){const r=S.resources.find(x=>x.id===id),d=new Date(Date.now()+864e5);d.setMinutes(0,0,0);const e=new Date(+d+2*36e5),l=x=>new Date(x-x.getTimezoneOffset()*6e4).toISOString().slice(0,16);
+ modal(`<h3>Request: ${esc(r.name)}</h3><p class="mut">Requirements: ${r.requires.join(', ')||'none'} - limit ${r.weeklyLimitHrs}h/week. The server checks eligibility, conflicts and fair-use limits.</p>
+ <label>Start</label><input type="datetime-local" id="s" value="${l(d)}"><label>End</label><input type="datetime-local" id="e" value="${l(e)}"><label>Purpose</label><textarea id="p" rows="2" placeholder="e.g. Imaging fluorescent samples for thesis chapter 3"></textarea>
+ <div class="row f"><button class="b" onclick="act(async()=>{await api('/bookings',{resourceId:'${id}',start:$('#s').value,end:$('#e').value,purpose:$('#p').value});closeM();tab='mine'},'Request submitted. The owner will review it.')">Submit request</button><button class="b alt" onclick="closeM()">Cancel</button></div>`)}
+function modal(h){closeM();const m=document.createElement('div');m.className='modal';m.id='m';m.innerHTML=`<div class="card">${h}</div>`;document.body.appendChild(m)}function closeM(){const m=$('#m');m&&m.remove()}
+// SCREEN 4: my bookings, check-out and return (Condition Passport)
+function mine(){const b=S.bookings;$('#app').innerHTML=`<h2>My bookings</h2><p class="sub">Track requests, collect equipment and return it with a documented condition.</p><div class="grid">${b.map(k=>`<div class="card"><h3>${esc(k.resourceName)}</h3><span class="tag ${stTag(k.status)}">${label(k.status)}</span>${k.overdue?'<span class="tag bad">overdue</span>':''}${k.waitPos?`<span class="tag warn">waiting list position ${k.waitPos}</span>`:''}
+ <div class="mut">${fmt(k.start)} to ${fmt(k.end)}</div><p>${esc(k.purpose)}</p>${k.reason?`<div class="mut">Note: ${esc(k.reason)}</div>`:''}
+ ${k.status==='approved'?`<label>Initial condition</label><input id="c${k.id}" placeholder="e.g. Clean, no scratches, lens cap present"><button class="b" onclick="act(()=>api('/bookings/checkout',{id:'${k.id}',condition:$('#c${k.id}').value}),'Checked out. Initial condition recorded.')">Confirm collection</button>`:''}
+ ${k.status==='checked_out'?`<label>Return condition</label><input id="c${k.id}" placeholder="Describe condition at return"><label class="row f"><input type="checkbox" style="width:auto" id="d${k.id}"> Report damage</label><button class="b" onclick="act(()=>api('/bookings/return',{id:'${k.id}',condition:$('#c${k.id}').value,damaged:$('#d${k.id}').checked}),'Return recorded.')">Return item</button>`:''}
+ ${timeline(k)}</div>`).join('')||'<div class="card">No bookings yet. Find equipment in Discover.</div>'}</div>`}
+function timeline(k){const ev=S.audit.filter(a=>a.bookingId===k.id).reverse();const own=[['Requested',k.createdAt]].concat(k.checkout?[['Checked out: '+k.checkout.condition,k.checkout.t]]:[],k.ret?[['Returned: '+k.ret.condition+(k.ret.damaged?' (damage reported)':''),k.ret.t]]:[]);
+ return `<div class="tl">${own.map(e=>`<div><b>${esc(e[0])}</b><br><span class="mut">${fmt(e[1])}</span></div>`).join('')}</div>`}
+// SCREEN 3: owner approval
+function requests(){const b=S.bookings.filter(k=>['pending','waitlisted'].includes(k.status));$('#app').innerHTML=`<h2>Approvals</h2><p class="sub">Every decision is made by a person and recorded with a reason.</p><div class="grid">${b.map(k=>`<div class="card"><h3>${esc(k.resourceName)}</h3><div><b>${esc(k.userName)}</b> <span class="tag ${k.eligibility.length?'bad':'ok'}">${k.eligibility.length?'missing '+k.eligibility.join(', '):'eligible'}</span><span class="tag ${stTag(k.status)}">${k.status}${k.waitPos?' #'+k.waitPos:''}</span>${k.competing?`<span class="tag warn">${k.competing} competing</span>`:''}</div>
+ <div class="mut">${fmt(k.start)} to ${fmt(k.end)}</div><p>${esc(k.purpose)}</p><label>Reason / note</label><input id="r${k.id}" placeholder="Required for reject or waitlist">
+ <div class="row f"><button class="b" onclick="dec('${k.id}','approve')">Approve</button><button class="b red" onclick="dec('${k.id}','reject')">Reject</button><button class="b alt" onclick="dec('${k.id}','waitlist')">Waitlist</button></div></div>`).join('')||'<div class="card">No pending requests. New requests appear here for review.</div>'}</div>`}
+const dec=(id,d)=>act(()=>api('/bookings/decide',{id,decision:d,reason:$('#r'+id).value}),'Decision recorded: '+d);
+function manage(){const mine=S.resources.filter(r=>S.me.role==='manager'||r.owner===S.me.id);$('#app').innerHTML=`<h2>Equipment</h2><p class="sub">List new equipment and control availability.</p><div class="grid"><div class="card"><h3>List new equipment</h3>
+ <label>Name</label><input id="n"><label>Category</label><input id="cg" placeholder="Microscopy, Imaging..."><label>Location</label><input id="l"><label>Description</label><input id="ds"><label>Required training (comma separated)</label><input id="rq" placeholder="microscopy"><label>Weekly fair-use limit (hours)</label><input id="wl" type="number" value="6">
+ <button class="b" onclick="act(()=>api('/resources',{name:$('#n').value,category:$('#cg').value,location:$('#l').value,desc:$('#ds').value,requires:$('#rq').value.split(',').map(x=>x.trim()),weeklyLimitHrs:$('#wl').value}),'Equipment listed.')">List equipment</button></div>
+ ${mine.map(r=>`<div class="card"><h3>${esc(r.name)}</h3><span class="tag ${r.available?'ok':'bad'}">${r.available?'Available':'Unavailable'}</span><div class="mut">${esc(r.location)} - requires ${r.requires.join(', ')||'none'}</div><br><button class="b alt" onclick="act(()=>api('/resources/availability',{id:'${r.id}',available:${!r.available}}),'Availability updated.')">Mark ${r.available?'unavailable':'available'}</button></div>`).join('')}</div>`}
+function incidents(){$('#app').innerHTML=`<h2>Incident review</h2><p class="sub">Damage reports go to a lab manager. Summaries are assistive only; you decide.</p><div class="grid">${S.incidents.map(i=>`<div class="card"><h3>${esc((S.resources.find(r=>r.id===i.resourceId)||{}).name)}</h3><span class="tag ${i.status==='open'?'bad':'ok'}">${i.status.replace('_',' ')}</span><div class="mut">Reported by ${esc(i.reportedBy)} on ${fmt(i.t)}</div><p>${esc(i.desc)}</p><div class="tl"><div>${esc(i.summary)}</div></div>
+ ${i.status==='open'?`<label>Review note</label><input id="n${i.id}"><div class="row f"><button class="b" onclick="rev('${i.id}','resolve')">Resolve</button><button class="b red" onclick="rev('${i.id}','repair')">Needs repair (take offline)</button></div>`:`<div class="mut">Reviewed by ${esc(i.reviewedBy)}: ${esc(i.reviewNote)}</div>`}</div>`).join('')||'<div class="card">No incidents reported.</div>'}</div>`}
+const rev=(id,o)=>act(()=>api('/incidents/review',{id,outcome:o,note:$('#n'+id).value}),'Incident reviewed.');
+// SCREEN 5: accountability dashboard
+function dash(){const B=S.bookings,act_=B.filter(k=>k.status==='checked_out'),od=act_.filter(k=>k.overdue),wl=B.filter(k=>k.status==='waitlisted'),inc=S.incidents.filter(i=>i.status==='open');
+ const util=S.resources.map(r=>{const h=B.filter(k=>k.resourceId===r.id&&['approved','checked_out','returned','closed'].includes(k.status)).reduce((s,k)=>s+(k.end-k.start)/36e5,0);return[r.name,h]});const mx=Math.max(1,...util.map(u=>u[1]));
+ $('#app').innerHTML=`<h2>Accountability dashboard</h2><p class="sub">${S.me.role==='student'?'Your activity':'Loans, waiting lists, utilisation, incidents and the full audit trail.'}</p>
+ <div class="stats"><div class="stat"><b>${act_.length}</b>Active loans</div><div class="stat"><b style="color:var(--bad)">${od.length}</b>Overdue</div><div class="stat"><b>${wl.length}</b>On waiting lists</div><div class="stat"><b>${S.incidents.length?inc.length:0}</b>Open incidents</div><div class="stat"><b>${B.filter(k=>k.status==='pending').length}</b>Pending requests</div></div>
+ <div class="grid"><div class="card"><h3>Utilisation (booked hours)</h3>${util.map(u=>`<div class="mut">${esc(u[0])} - ${u[1].toFixed(1)}h</div><div class="bar"><i style="width:${u[1]/mx*100}%"></i></div><br>`).join('')}</div>
+ <div class="card"><h3>Active loans</h3>${act_.map(k=>`<div>${esc(k.resourceName)} - ${esc(k.userName)} <span class="tag ${k.overdue?'bad':''}">due ${fmt(k.end)}</span></div>`).join('')||'<span class="mut">None right now.</span>'}<h3 style="margin-top:12px">Waiting lists</h3>${wl.map(k=>`<div>${esc(k.resourceName)} - ${esc(k.userName)} <span class="tag warn">#${k.waitPos}</span></div>`).join('')||'<span class="mut">Empty.</span>'}</div></div>
+ <div class="card" style="margin-top:14px"><h3>Audit log</h3><div class="scroll"><table><tr><th>When</th><th>Actor</th><th>Event</th></tr>${S.audit.map(a=>`<tr><td>${fmt(a.t)}</td><td>${esc(a.actor)}</td><td>${esc(a.msg)}</td></tr>`).join('')}</table></div>
+ ${S.me.role==='manager'?`<br><button class="b alt" onclick="if(confirm('Reset all demo data?'))act(()=>api('/reset',{}),'Demo data reset.')">Reset demo data</button>`:''}</div>`}
+token?load():loginView();
+</script></body></html>

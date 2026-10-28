@@ -1,0 +1,1 @@
+{"name":"labloop","version":"1.0.0","description":"Trusted sharing network for university lab equipment","scripts":{"start":"node server.js","test":"node test.js"},"engines":{"node":">=18"}}
